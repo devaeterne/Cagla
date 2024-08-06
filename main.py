@@ -1,54 +1,54 @@
 import pandas as pd
 
-def increment_segments(input_value, max_increment=8):
-    print(f"Processing: {input_value}")  # İşlem sırasında hangi değerin işlendiğini yazdır
-    segments = input_value.split('/')
-    incremented_segments = [segments[0]]  # İlk segmenti olduğu gibi bırak
+# Excel dosyasını oku
+excel_file = 'data/book3.xlsx'  # Excel dosyanızın adını buraya yazın
 
-    for i in range(1, len(segments)):
-        segment_parts = segments[i].split('/')
-        
-        # Artırma işlemi
-        incremented_parts = []
-        for part in segment_parts:
-            try:
-                incremented_part = str(int(part) + 1)
-                incremented_parts.append(incremented_part)
-            except ValueError:
-                print(f"Could not convert part to int: {part}")  # Eğer dönüştürme başarısız olursa yazdır
+# Excel dosyasını oku (ilk sayfa varsayılan olarak alınır)
+df = pd.read_excel(excel_file)
+
+# Yeni bir sütun ekle
+df['OUTPUT'] = ''  # Yeni sütunu boş olarak ekle
+
+# DataFrame'deki tüm hücreleri kontrol et
+for row_index in range(df.shape[0]):  # Satır sayısı
+    input_value = df.iat[row_index, 1]  # 'INPUT' sütunundaki değeri al (indeks 1)
+
+    # '-' ile parçala
+    parts = input_value.split('-')  # '-' ile ayır
+    valid_values = set()  # Geçerli değerleri tutmak için bir set
+
+    for part in parts:
+        if '/' in part:
+            # '/' ile parçala
+            sub_parts = part.split('/')  # '/' ile ayır
+            
+            # İlk kısım (4 haneli kontrolü)
+            previous_part = sub_parts[0].strip()  # İlk kısım
+            if previous_part.isdigit() and len(previous_part) == 4:  # 4 haneli kontrolü
+                valid_values.add(previous_part)  # 4 haneli değeri ekle
                 
-        new_segment = '/'.join(incremented_parts)
-        print(f"Incremented segment: {new_segment}")  # Yeni segmenti yazdır
-        incremented_segments.append(new_segment)
-        
-    result = '/'.join(incremented_segments)
-    print(f"Resulting value: {result}")  # Sonucu yazdır
-    return result
+                # Son kısımdaki tek haneli değeri al
+                for i in range(1, len(sub_parts)):
+                    current_part = sub_parts[i].strip()
+                    if current_part.isdigit() and len(current_part) == 1:  # Tek haneli kontrolü
+                        # Son rakamı değiştir
+                        new_value = previous_part[:-1] + current_part  # Önceki sayının sonunu değiştir
+                        valid_values.add(new_value)  # Yeni sayıyı ekle
+                        previous_part = new_value  # Önceki kısmı güncelle
+                    else:
+                        # Eğer çok haneli bir sayı varsa, doğrudan ekle
+                        valid_values.add(current_part)
 
-input_file = '/Users/devaeterne/Projects/Cagla/data/Book3.xlsx'
-output_file = '/Users/devaeterne/Projects/Cagla/data/Book3_out.xlsx'
+        else:
+            # Eğer '/' yoksa doğrudan parçayı ekle
+            valid_values.add(part.strip())
 
-try:
-    # Doğru satırdan sütun adlarını oku
-    df = pd.read_excel(input_file, header=0)  # header=0, ilk satırı sütun adı olarak alır
-    print("Original DataFrame:")
-    print(df.head())
-    
-    # 'input' sütununun mevcut olduğunu kontrol et
-    if 'input' not in df.columns:
-        raise KeyError(f"'input' column not found in the Excel file. Available columns: {df.columns.tolist()}")
-    
-    # 'input' sütununu işle
-    df['input'] = df['input'].apply(increment_segments)
-    print("Processed DataFrame:")
-    print(df.head())
-    
-    # Yeni Excel dosyasına kaydet
-    df.to_excel(output_file, index=False)
-    print(f"Dataset successfully processed and saved to {output_file}.")
-except FileNotFoundError:
-    print(f"File not found: {input_file}")
-except KeyError as e:
-    print(e)
-except Exception as e:
-    print(f"An error occurred: {e}")
+    # Geçerli değerleri sıralayıp yeni sütuna yaz
+    result_values = sorted(valid_values, key=int)  # Sayısal olarak sıralayıp birleştir
+    df.at[row_index, 'OUTPUT'] = '\t'.join(result_values)  # Sonucu birleştir
+
+# Güncellenmiş DataFrame'i yeni bir Excel dosyasına yaz
+output_file = 'data/updated_book3.xlsx'  # Güncellenmiş dosya adı
+df.to_excel(output_file, index=False)
+
+print("Veriler güncellendi ve yeni dosyaya kaydedildi.")
